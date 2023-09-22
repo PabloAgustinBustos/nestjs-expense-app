@@ -1,19 +1,21 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Put } from '@nestjs/common';
-import { data, Report, ReportType } from './data';
-import { v4 } from "uuid"
+import { ReportType } from './data';
+import { AppService } from './app.service';
 
 @Controller('report/:type')
 export class AppController {
+  constructor(private service: AppService) {}
+
   @Get()
-  getAllIncomeReports(@Param("type") type: ReportType) {
-    const reports = data.report.filter(report => report.type === type)
+  getAllReports(@Param("type") type: ReportType) {
+    const reports = this.service.getAllReports(type)
    
     return reports;
   }
 
   @Get(':id')
   getReport(@Param('id') id: string, @Param("type") type: ReportType) {
-    const report = data.report.find(report => report.type === type && report.id === id)
+    const report = this.service.getReport(id, type)
 
     if(!report) throw new NotFoundException();
 
@@ -24,16 +26,7 @@ export class AppController {
   createReport(@Body() body: {amount: number, source: string}, @Param("type") type: ReportType) {
     const { source, amount } = body
     
-    const newReport: Report = {
-      id: v4(),
-      source,
-      amount,
-      created_at: new Date(),
-      updated_at: new Date(),
-      type
-    }
-
-    data.report.push(newReport)
+    const newReport = this.service.createReport(source, amount, type)
 
     return newReport;
   }
@@ -42,25 +35,22 @@ export class AppController {
   updateReport(@Body() body: {amount: number, source: string}, @Param("type") type: ReportType, @Param('id') id: string) {
     const { source, amount } = body
 
-    const report = data.report.find(report => report.id === id && report.type === type)
+    const report = this.service.getReport(id, type)
     
     if(!report) throw new NotFoundException();
-
-    if(source) report.source = source
-    if(amount) report.amount = amount
-    if(amount || source) report.updated_at = new Date()
-
+    if(source || amount) this.service.updateReport(report, source, amount)
+    
     return report;
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteReport(@Param("type") type: ReportType, @Param('id') id: string) {
-    const deletedReport = data.report.find(report => report.id === id && report.type === type)
+    const deletedReport = this.service.getReport(id, type)
 
     if(!deletedReport) throw new NotFoundException();
 
-    data.report = data.report.filter(report => report.id !== id)
+    this.service.deleteReport(id)
 
     return
   }
